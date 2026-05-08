@@ -28,11 +28,11 @@ MainWindow::MainWindow(QWidget *parent)
     central_widget->setLayout(m_grid_layout);
     setCentralWidget(central_widget);
 
-    initInterface();
-
     // 初始化电梯位置
     for (int i = 0; i < ELEVATOR_NUM; ++i)
         elevator[i] = 1;
+
+    initInterface();
 
     // 连接按钮信号
     connect(this, &MainWindow::upDownButtonChanged, [this](int index, int direction)
@@ -69,6 +69,36 @@ void MainWindow::initInterface()
     }
 
     // 初始化可视化电梯
+    QVector<QColor> colors = {QColor(52, 152, 219), QColor(46, 204, 113), QColor(241, 196, 15),
+                              QColor(155, 89, 182), QColor(231, 76, 60)};
+    for (int i = 0; i < ELEVATOR_NUM; ++i)
+    {
+        auto label = new QLabel(this);
+        label->setText(QString("电梯%1").arg(i + 1));
+        label->setAlignment(Qt::AlignCenter);
+        label->setStyleSheet(
+            QString("background-color: %1; color: white; font-size: 14px; font-weight: bold; "
+                    "border-radius: 4px;")
+                .arg(colors[i].name()));
+        label->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+        elevatorLabels.append(label);
+    }
+    updateElevatorDisplay();
+}
+
+void MainWindow::updateElevatorDisplay()
+{
+    for (int i = 0; i < ELEVATOR_NUM; ++i)
+    {
+        m_grid_layout->removeWidget(elevatorLabels[i]);
+    }
+    for (int i = 0; i < ELEVATOR_NUM; ++i)
+    {
+        int row = HEIGHT - elevator[i];
+        int col = 2 + i;
+        m_grid_layout->addWidget(elevatorLabels[i], row, col);
+        elevatorLabels[i]->show();
+    }
 }
 
 MainWindow::~MainWindow()

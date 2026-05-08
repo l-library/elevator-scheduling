@@ -6,6 +6,7 @@
 #define ELEVATOR_NUM 5
 
 class QGridLayout;
+class QLabel;
 class QPushButton;
 
 class MainWindow : public QMainWindow
@@ -23,6 +24,7 @@ signals:
 private:
     // 初始化界面
     void initInterface();
+    void updateElevatorDisplay();
 
     // 电梯位置，起始位置为1
     int elevator[ELEVATOR_NUM];
@@ -31,6 +33,7 @@ private:
     // 保存按钮指针
     QVector<QPushButton *> upButton;
     QVector<QPushButton *> downButton;
+    QVector<QLabel *> elevatorLabels;
 
     // 布局
     QGridLayout *m_grid_layout;
