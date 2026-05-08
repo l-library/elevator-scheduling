@@ -5,6 +5,8 @@ project(elevator-scheduling VERSION 0.1 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+set(CMAKE_AUTORCC ON)
+
 find_package(Qt6 REQUIRED COMPONENTS Widgets)
 
 qt_standard_project_setup()
@@ -13,6 +15,7 @@ qt_add_executable(elevator-scheduling
     main.cpp
     mainwindow.cpp
     mainwindow.h
+    res.qrc
 )
 
 target_link_libraries(elevator-scheduling PRIVATE Qt${QT_VERSION_MAJOR}::Widgets)
