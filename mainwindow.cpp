@@ -46,6 +46,14 @@ MainWindow::MainWindow(QWidget *parent)
         externalAssignment[i][1] = -1;
     }
 
+    upButton.resize(HEIGHT);
+    downButton.resize(HEIGHT);
+    for (int i = 0; i < HEIGHT; ++i)
+    {
+        upButton[i] = nullptr;
+        downButton[i] = nullptr;
+    }
+
     auto central_widget = new QWidget(this);
     auto main_layout = new QHBoxLayout(central_widget);
     main_layout->setSpacing(12);
@@ -252,7 +260,7 @@ void MainWindow::initInterface()
             up->setIcon(QIcon(":/asset/up.png"));
             up->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
             up->setCheckable(true);
-            upButton.append(up);
+            upButton[i] = up;
             layout->addWidget(up, 0, 0);
             // 连接信号：新请求
             connect(up, &QPushButton::toggled, this, [this, floorIdx = i, dir = 0](bool checked)
@@ -265,9 +273,9 @@ void MainWindow::initInterface()
             down->setIcon(QIcon(":/asset/down.png"));
             down->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
             down->setCheckable(true);
-            downButton.append(down);
+            downButton[i] = down;
             layout->addWidget(down, 0, 1);
-            connect(down, &QPushButton::toggled, this, [this, floorIdx = i, dir = 0](bool checked)
+            connect(down, &QPushButton::toggled, this, [this, floorIdx = i, dir = 1](bool checked)
                     { onExternalRequest(floorIdx, dir, checked); });
         }
         m_grid_layout->addLayout(layout, i, 1);
@@ -348,7 +356,7 @@ void MainWindow::onExternalRequest(int floorIdx, int direction, bool checked)
         {
             externalAssignment[actualFloor][direction] = best; // 记录分配
             elevatorTargets[best].insert(actualFloor);         // 记录电梯目标
-            if (elevatorDirection[best] == 0)                  // 若电梯静止，判断电梯运动方向
+            if (elevatorDirection[best] == Direction::stop)    // 若电梯静止，判断电梯运动方向
                 if (actualFloor > elevator[best])
                     elevatorDirection[best] = Direction::up;
                 else if (actualFloor < elevator[best])
@@ -434,7 +442,7 @@ void MainWindow::updateElevators()
         // 向下的外呼
         if (current != 1 && externalAssignment[current][1] == i)
         {
-            externalAssignment[current][0] = -1;
+            externalAssignment[current][1] = -1;
             // 复位对应按钮
             int floorIdx = HEIGHT - current;
             downButton[floorIdx]->blockSignals(true);
@@ -479,6 +487,7 @@ void MainWindow::updateElevators()
                 }
             }
         } // 方向决策结束
+        elevatorDirection[i] = dir;
         // 电梯移动一层
         if (dir != Direction::stop)
         {
@@ -486,7 +495,7 @@ void MainWindow::updateElevators()
             if (next >= 1 && next <= HEIGHT)
                 elevator[i] = next;
             else
-                elevatorDirection[i] = stop; // 边界
+                elevatorDirection[i] = Direction::stop; // 边界
         }
     }
 }
