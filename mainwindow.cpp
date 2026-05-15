@@ -101,13 +101,13 @@ MainWindow::MainWindow(QWidget *parent)
         else if (floor < elevator[elevIdx]) elevatorDirection[elevIdx] = Direction::down;
     } });
 
+    // 定时器更新电梯移动
     QTimer *timer = new QTimer(this);
     connect(timer, &QTimer::timeout, this, [this]()
             {
-        elevator[1] = 3;
-        elevatorDirection[1] = Direction::up;
+        updateElevators();
         updateElevatorDisplay(); });
-    timer->start(1000);
+    timer->start(500);
 }
 
 QWidget *MainWindow::createElevatorPanel(int elevatorIndex)
@@ -214,7 +214,7 @@ QWidget *MainWindow::createElevatorPanel(int elevatorIndex)
 
     layout->addLayout(inputLayout);
 
-    // 预留接口：确认按钮和回车触发楼层请求信号
+    // 确认按钮和回车触发楼层请求信号
     connect(confirmBtn, &QPushButton::clicked, this, [this, elevatorIndex]()
             {
         bool ok = false;
@@ -267,10 +267,8 @@ void MainWindow::initInterface()
             down->setCheckable(true);
             downButton.append(down);
             layout->addWidget(down, 0, 1);
-            connect(down, &QPushButton::toggled, [i, this](bool /*checked*/)
-                    {
-                buttonChecked[i][1] = !buttonChecked[i][1];
-                emit upDownButtonChanged(i, 1); });
+            connect(down, &QPushButton::toggled, this, [this, floorIdx = i, dir = 0](bool checked)
+                    { onExternalRequest(floorIdx, dir, checked); });
         }
         m_grid_layout->addLayout(layout, i, 1);
     }
@@ -358,7 +356,7 @@ void MainWindow::onExternalRequest(int floorIdx, int direction, bool checked)
         }
         else
         { // 无可用电梯
-          // 待完成
+            qDebug() << "无可用电梯";
         }
     }
     else // 取消请求
@@ -410,6 +408,87 @@ int MainWindow::findBestElevator(int floor, int reqDir)
         }
     }
     return best;
+}
+
+void MainWindow::updateElevators()
+{
+    for (int i = 0; i < ELEVATOR_NUM; ++i)
+    {
+        int current = elevator[i];            // 当前电梯位置
+        Direction dir = elevatorDirection[i]; // 当前电梯方向
+        // 内呼：移除当前位置
+        if (elevatorTargets[i].contains(current))
+        {
+            elevatorTargets[i].remove(current);
+        }
+        // 向上的外呼
+        if (current != HEIGHT && externalAssignment[current][0] == i)
+        {
+            externalAssignment[current][0] = -1;
+            // 复位对应按钮
+            int floorIdx = HEIGHT - current;
+            upButton[floorIdx]->blockSignals(true);
+            upButton[floorIdx]->setChecked(false);
+            upButton[floorIdx]->blockSignals(false);
+        }
+        // 向下的外呼
+        if (current != 1 && externalAssignment[current][1] == i)
+        {
+            externalAssignment[current][0] = -1;
+            // 复位对应按钮
+            int floorIdx = HEIGHT - current;
+            downButton[floorIdx]->blockSignals(true);
+            downButton[floorIdx]->setChecked(false);
+            downButton[floorIdx]->blockSignals(false);
+        }
+        // 方向决策
+        if (elevatorTargets[i].isEmpty())
+            dir = Direction::stop;
+        else
+        {
+            bool isInDir = false;
+            for (int t : elevatorTargets[i])
+            {
+                if ((dir == 1 && t > current) || (dir == -1 && t < current))
+                {
+                    isInDir = true;
+                    break;
+                }
+            }
+            if (!isInDir)
+            {
+                // 检查反方向有无请求
+                bool hasAbove = false, hasBelow = false;
+                for (int t : elevatorTargets[i])
+                {
+                    if (t > current)
+                        hasAbove = true;
+                    if (t < current)
+                        hasBelow = true;
+                }
+                // 反方向有请求：转向
+                if (dir == Direction::up && hasBelow)
+                    dir = Direction::down;
+                else if (dir == Direction::down && hasAbove)
+                    dir = Direction::up;
+                // 从静止启动
+                else if (dir == Direction::stop)
+                {
+                    int first = *elevatorTargets[i].begin(); // set 自动排序
+                    dir = (first > current) ? Direction::up : Direction::down;
+                }
+            }
+        } // 方向决策结束
+        // 电梯移动一层
+        if (dir != Direction::stop)
+        {
+            int next = current + (dir == Direction::up ? 1 : -1);
+            if (next >= 1 && next <= HEIGHT)
+                elevator[i] = next;
+            else
+                elevatorDirection[i] = stop; // 边界
+        }
+    }
 }
 
 MainWindow::~MainWindow() {}

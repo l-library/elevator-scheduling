@@ -42,6 +42,8 @@ private:
     // 调度算法
     void onExternalRequest(int floorIdx, int direction, bool checked); // 有新的外部请求
     int findBestElevator(int floor, int reqDir);                       // 最佳电梯选择
+    // 定时更新
+    void updateElevators();
 
     // 电梯位置，起始位置为1
     int elevator[ELEVATOR_NUM];
