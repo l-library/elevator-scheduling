@@ -12,15 +12,16 @@
 #include <QFrame>
 #include <QIntValidator>
 
-namespace {
+namespace
+{
 
-const QVector<QColor> kElevatorColors = {
-    QColor(52, 152, 219),
-    QColor(46, 204, 113),
-    QColor(241, 196, 15),
-    QColor(155, 89, 182),
-    QColor(231, 76, 60),
-};
+    const QVector<QColor> kElevatorColors = {
+        QColor(52, 152, 219),
+        QColor(46, 204, 113),
+        QColor(241, 196, 15),
+        QColor(155, 89, 182),
+        QColor(231, 76, 60),
+    };
 
 }
 
@@ -30,14 +31,19 @@ MainWindow::MainWindow(QWidget *parent)
     setWindowTitle("电梯调度模拟程序");
     setWindowState(Qt::WindowMaximized);
 
-    for (int i = 0; i < ELEVATOR_NUM; ++i) {
+    // 初始化各数组
+    for (int i = 0; i < ELEVATOR_NUM; ++i)
+    {
         elevator[i] = 1;
-        elevatorDirection[i] = 0;
+        elevatorDirection[i] = Direction::stop;
     }
 
-    for (int i = 0; i < HEIGHT; ++i) {
+    for (int i = 0; i < HEIGHT + 1; ++i)
+    {
         buttonChecked[i][0] = false;
         buttonChecked[i][1] = false;
+        externalAssignment[i][0] = -1;
+        externalAssignment[i][1] = -1;
     }
 
     auto central_widget = new QWidget(this);
@@ -62,7 +68,8 @@ MainWindow::MainWindow(QWidget *parent)
     auto right_widget = new QWidget(this);
     auto right_layout = new QHBoxLayout(right_widget);
     right_layout->setSpacing(8);
-    for (int i = 0; i < ELEVATOR_NUM; ++i) {
+    for (int i = 0; i < ELEVATOR_NUM; ++i)
+    {
         auto panel = createElevatorPanel(i);
         right_layout->addWidget(panel);
     }
@@ -77,19 +84,29 @@ MainWindow::MainWindow(QWidget *parent)
     initInterface();
 
     connect(this, &MainWindow::upDownButtonChanged,
-            this, [this](int index, int direction) {
+            this, [this](int index, int direction)
+            {
                 if (direction == 0)
                     upButton[index]->setChecked(buttonChecked[index][direction]);
                 else
-                    downButton[index]->setChecked(buttonChecked[index][direction]);
-            });
+                    downButton[index]->setChecked(buttonChecked[index][direction]); });
+
+    // 内呼请求直接加入目标集合
+    connect(this, &MainWindow::floorRequested, this, [this](int elevIdx, int floor)
+            {
+    elevatorTargets[elevIdx].insert(floor);
+    // 如果电梯此时停止，则根据请求的方向设置电梯方向
+    if (elevatorDirection[elevIdx] == Direction::stop) {
+        if (floor > elevator[elevIdx]) elevatorDirection[elevIdx] = Direction::up;
+        else if (floor < elevator[elevIdx]) elevatorDirection[elevIdx] = Direction::down;
+    } });
 
     QTimer *timer = new QTimer(this);
-    connect(timer, &QTimer::timeout, this, [this]() {
+    connect(timer, &QTimer::timeout, this, [this]()
+            {
         elevator[1] = 3;
-        elevatorDirection[1] = 1;
-        updateElevatorDisplay();
-    });
+        elevatorDirection[1] = Direction::up;
+        updateElevatorDisplay(); });
     timer->start(1000);
 }
 
@@ -100,19 +117,20 @@ QWidget *MainWindow::createElevatorPanel(int elevatorIndex)
     auto groupBox = new QGroupBox(
         QString("  电梯 %1 内部  ").arg(elevatorIndex + 1), this);
     groupBox->setStyleSheet(QString(
-        "QGroupBox {"
-        "   font-weight: bold; font-size: 14px;"
-        "   border: 2px solid %1;"
-        "   border-radius: 8px;"
-        "   margin-top: 14px;"
-        "   padding: 12px 8px 8px 8px;"
-        "}"
-        "QGroupBox::title {"
-        "   subcontrol-origin: margin;"
-        "   subcontrol-position: top center;"
-        "   color: %1;"
-        "   padding: 0 6px;"
-        "}").arg(color.name()));
+                                "QGroupBox {"
+                                "   font-weight: bold; font-size: 14px;"
+                                "   border: 2px solid %1;"
+                                "   border-radius: 8px;"
+                                "   margin-top: 14px;"
+                                "   padding: 12px 8px 8px 8px;"
+                                "}"
+                                "QGroupBox::title {"
+                                "   subcontrol-origin: margin;"
+                                "   subcontrol-position: top center;"
+                                "   color: %1;"
+                                "   padding: 0 6px;"
+                                "}")
+                                .arg(color.name()));
 
     auto layout = new QVBoxLayout(groupBox);
     layout->setSpacing(10);
@@ -164,7 +182,8 @@ QWidget *MainWindow::createElevatorPanel(int elevatorIndex)
                 "}"
                 "QLineEdit:focus {"
                 "   border-color: %1;"
-                "}").arg(color.name()));
+                "}")
+            .arg(color.name()));
     inputLayout->addWidget(lineEdit);
     floorInputs.append(lineEdit);
 
@@ -196,14 +215,14 @@ QWidget *MainWindow::createElevatorPanel(int elevatorIndex)
     layout->addLayout(inputLayout);
 
     // 预留接口：确认按钮和回车触发楼层请求信号
-    connect(confirmBtn, &QPushButton::clicked, this, [this, elevatorIndex]() {
+    connect(confirmBtn, &QPushButton::clicked, this, [this, elevatorIndex]()
+            {
         bool ok = false;
         int floor = floorInputs[elevatorIndex]->text().toInt(&ok);
         if (ok && floor >= 1 && floor <= HEIGHT) {
             emit floorRequested(elevatorIndex, floor);
             floorInputs[elevatorIndex]->clear();
-        }
-    });
+        } });
 
     connect(lineEdit, &QLineEdit::returnPressed,
             confirmBtn, &QPushButton::click);
@@ -215,7 +234,8 @@ QWidget *MainWindow::createElevatorPanel(int elevatorIndex)
 void MainWindow::initInterface()
 {
     // 初始化左侧楼层视图
-    for (int i = 0; i < HEIGHT; ++i) {
+    for (int i = 0; i < HEIGHT; ++i)
+    {
         QLabel *label = new QLabel(this);
         label->setText(QString("第%1层").arg(HEIGHT - i));
         label->setAlignment(Qt::AlignCenter);
@@ -226,36 +246,38 @@ void MainWindow::initInterface()
         layout->setColumnStretch(0, 1);
         layout->setColumnStretch(1, 1);
 
-        if (HEIGHT - i != HEIGHT) {
+        if (HEIGHT - i != HEIGHT)
+        {
             QPushButton *up = new QPushButton(this);
             up->setIcon(QIcon(":/asset/up.png"));
             up->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
             up->setCheckable(true);
             upButton.append(up);
             layout->addWidget(up, 0, 0);
-            connect(up, &QPushButton::toggled, [i, this](bool /*checked*/) {
-                buttonChecked[i][0] = !buttonChecked[i][0];
-                emit upDownButtonChanged(i, 0);
-            });
+            // 连接信号：新请求
+            connect(up, &QPushButton::toggled, this, [this, floorIdx = i, dir = 0](bool checked)
+                    { onExternalRequest(floorIdx, dir, checked); });
         }
 
-        if (HEIGHT - i != 1) {
+        if (HEIGHT - i != 1)
+        {
             QPushButton *down = new QPushButton(this);
             down->setIcon(QIcon(":/asset/down.png"));
             down->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
             down->setCheckable(true);
             downButton.append(down);
             layout->addWidget(down, 0, 1);
-            connect(down, &QPushButton::toggled, [i, this](bool /*checked*/) {
+            connect(down, &QPushButton::toggled, [i, this](bool /*checked*/)
+                    {
                 buttonChecked[i][1] = !buttonChecked[i][1];
-                emit upDownButtonChanged(i, 1);
-            });
+                emit upDownButtonChanged(i, 1); });
         }
         m_grid_layout->addLayout(layout, i, 1);
     }
 
     // 初始化可视化电梯
-    for (int i = 0; i < ELEVATOR_NUM; ++i) {
+    for (int i = 0; i < ELEVATOR_NUM; ++i)
+    {
         auto label = new QLabel(this);
         label->setText(QString("电梯%1").arg(i + 1));
         label->setAlignment(Qt::AlignCenter);
@@ -271,10 +293,12 @@ void MainWindow::initInterface()
 
 void MainWindow::updateElevatorDisplay()
 {
-    for (int i = 0; i < ELEVATOR_NUM; ++i) {
+    for (int i = 0; i < ELEVATOR_NUM; ++i)
+    {
         m_grid_layout->removeWidget(elevatorLabels[i]);
     }
-    for (int i = 0; i < ELEVATOR_NUM; ++i) {
+    for (int i = 0; i < ELEVATOR_NUM; ++i)
+    {
         int row = HEIGHT - elevator[i];
         int col = 2 + i;
         m_grid_layout->addWidget(elevatorLabels[i], row, col);
@@ -283,15 +307,17 @@ void MainWindow::updateElevatorDisplay()
         if (i < lcdDisplays.size())
             lcdDisplays[i]->display(elevator[i]);
 
-        if (i < directionIndicators.size()) {
-            switch (elevatorDirection[i]) {
-            case 1:
+        if (i < directionIndicators.size())
+        {
+            switch (elevatorDirection[i])
+            {
+            case Direction::up:
                 directionIndicators[i]->setText("▲ 上行");
                 directionIndicators[i]->setStyleSheet(
                     "font-size: 18px; font-weight: bold; padding: 4px;"
                     "color: #27ae60;");
                 break;
-            case -1:
+            case Direction::down:
                 directionIndicators[i]->setText("▼ 下行");
                 directionIndicators[i]->setStyleSheet(
                     "font-size: 18px; font-weight: bold; padding: 4px;"
@@ -306,6 +332,84 @@ void MainWindow::updateElevatorDisplay()
             }
         }
     }
+}
+
+// 核心调度算法
+
+// 调度入口函数
+void MainWindow::onExternalRequest(int floorIdx, int direction, bool checked)
+{
+    int actualFloor = HEIGHT - floorIdx; // 实际楼层
+    // 如果是新请求
+    if (checked)
+    {
+        if (externalAssignment[actualFloor][direction] != -1) // 已分配
+            return;
+        int best = findBestElevator(actualFloor, direction);
+        if (best != -1) // 成功分配给某个电梯
+        {
+            externalAssignment[actualFloor][direction] = best; // 记录分配
+            elevatorTargets[best].insert(actualFloor);         // 记录电梯目标
+            if (elevatorDirection[best] == 0)                  // 若电梯静止，判断电梯运动方向
+                if (actualFloor > elevator[best])
+                    elevatorDirection[best] = Direction::up;
+                else if (actualFloor < elevator[best])
+                    elevatorDirection[best] = Direction::down;
+        }
+        else
+        { // 无可用电梯
+          // 待完成
+        }
+    }
+    else // 取消请求
+    {
+        int assigned = externalAssignment[actualFloor][direction]; // 找到被分配的电梯序号
+        if (assigned != -1)
+        {                                                    // 的确被分配了
+            elevatorTargets[assigned].remove(actualFloor);   // 从待服务目标中去除
+            externalAssignment[actualFloor][direction] = -1; // 重新设置为未分配
+        }
+        else // 未分配
+            qDebug() << "试图取消不存在的任务：电梯" << assigned << "前往" << actualFloor;
+    }
+}
+
+// 最佳电梯选择
+int MainWindow::findBestElevator(int floor, int reqDir)
+{
+    int best = -1;
+    int minCost = INT_MAX;
+    // 计算最低成本
+    for (int i = 0; i < ELEVATOR_NUM; ++i)
+    {
+        int pos = elevator[i];
+        Direction dir = elevatorDirection[i];
+        // 基础距离成本，乘10方便加权计算
+        int bestDist = std::abs(pos - floor) * 10;
+        int cost = bestDist;
+        if (dir == Direction::stop)
+            ; // 空闲电梯，无需计算其他成本
+        // 同向顺路，也无需计算其他成本
+        else if ((reqDir == Direction::up && dir == Direction::up && floor >= pos) ||
+                 (reqDir == Direction::down && dir == Direction::down && floor <= pos))
+            ;
+        // 同向但是不顺路，增加一定cost
+        else if ((reqDir == Direction::up && dir == Direction::up && floor < pos) ||
+                 (reqDir == -1 && dir == -1 && floor > pos))
+            cost += 100;
+        // 方向相反
+        else
+            cost += 200;
+        // 加入已有任务量的cost，避免饥饿
+        cost += elevatorTargets[i].size() * 30;
+        // 更新最小cost
+        if (cost < minCost)
+        {
+            minCost = cost;
+            best = i;
+        }
+    }
+    return best;
 }
 
 MainWindow::~MainWindow() {}
